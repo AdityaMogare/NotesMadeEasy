@@ -2,7 +2,7 @@ import { ArrowLeftIcon } from "lucide-react";
 import { useState } from "react";
 import toast from "react-hot-toast";
 import { Link, useNavigate } from "react-router";
-import api from "../lib/axios";
+import { getNotesFromStorage, saveNotesToStorage, generateId } from "../lib/utils";
 
 const CreatePage = () => {
   const [title, setTitle] = useState("");
@@ -21,23 +21,27 @@ const CreatePage = () => {
 
     setLoading(true);
     try {
-      await api.post("/notes", {
-        title,
-        content,
-      });
+      // Create new note
+      const newNote = {
+        id: generateId(),
+        title: title.trim(),
+        content: content.trim(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      // Get existing notes and add new note
+      const existingNotes = getNotesFromStorage();
+      const updatedNotes = [newNote, ...existingNotes];
+      
+      // Save to localStorage
+      saveNotesToStorage(updatedNotes);
 
       toast.success("Note created successfully!");
       navigate("/");
     } catch (error) {
       console.log("Error creating note", error);
-      if (error.response.status === 429) {
-        toast.error("Slow down! You're creating notes too fast", {
-          duration: 4000,
-          icon: "💀",
-        });
-      } else {
-        toast.error("Failed to create note");
-      }
+      toast.error("Failed to create note");
     } finally {
       setLoading(false);
     }

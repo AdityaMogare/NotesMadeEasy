@@ -1,9 +1,9 @@
 import { useEffect } from "react";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
-import api from "../lib/axios";
 import toast from "react-hot-toast";
 import { ArrowLeftIcon, LoaderIcon, Trash2Icon } from "lucide-react";
+import { getNotesFromStorage, saveNotesToStorage } from "../lib/utils";
 
 const NoteDetailPage = () => {
   const [note, setNote] = useState(null);
@@ -11,14 +11,21 @@ const NoteDetailPage = () => {
   const [saving, setSaving] = useState(false);
 
   const navigate = useNavigate();
-
   const { id } = useParams();
 
   useEffect(() => {
-    const fetchNote = async () => {
+    const fetchNote = () => {
       try {
-        const res = await api.get(`/notes/${id}`);
-        setNote(res.data);
+        const notes = getNotesFromStorage();
+        const foundNote = notes.find(n => n.id === id);
+        
+        if (!foundNote) {
+          toast.error("Note not found");
+          navigate("/");
+          return;
+        }
+        
+        setNote(foundNote);
       } catch (error) {
         console.log("Error in fetching note", error);
         toast.error("Failed to fetch the note");
@@ -28,13 +35,16 @@ const NoteDetailPage = () => {
     };
 
     fetchNote();
-  }, [id]);
+  }, [id, navigate]);
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!window.confirm("Are you sure you want to delete this note?")) return;
 
     try {
-      await api.delete(`/notes/${id}`);
+      const notes = getNotesFromStorage();
+      const updatedNotes = notes.filter(n => n.id !== id);
+      saveNotesToStorage(updatedNotes);
+      
       toast.success("Note deleted");
       navigate("/");
     } catch (error) {
@@ -43,7 +53,7 @@ const NoteDetailPage = () => {
     }
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!note.title.trim() || !note.content.trim()) {
       toast.error("Please add a title or content");
       return;
@@ -52,7 +62,14 @@ const NoteDetailPage = () => {
     setSaving(true);
 
     try {
-      await api.put(`/notes/${id}`, note);
+      const notes = getNotesFromStorage();
+      const updatedNotes = notes.map(n => 
+        n.id === id 
+          ? { ...note, updatedAt: new Date().toISOString() }
+          : n
+      );
+      
+      saveNotesToStorage(updatedNotes);
       toast.success("Note updated successfully");
       navigate("/");
     } catch (error) {
@@ -67,6 +84,19 @@ const NoteDetailPage = () => {
     return (
       <div className="min-h-screen bg-base-200 flex items-center justify-center">
         <LoaderIcon className="animate-spin size-10" />
+      </div>
+    );
+  }
+
+  if (!note) {
+    return (
+      <div className="min-h-screen bg-base-200 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-4">Note not found</h2>
+          <Link to="/" className="btn btn-primary">
+            Back to Notes
+          </Link>
+        </div>
       </div>
     );
   }
