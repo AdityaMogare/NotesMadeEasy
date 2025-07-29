@@ -2,30 +2,70 @@ import { useState, useEffect } from "react";
 import Navbar from "../components/Navbar";
 import NoteCard from "../components/NoteCard";
 import NotesNotFound from "../components/NotesNotFound";
-import { getNotesFromStorage, saveNotesToStorage } from "../lib/utils";
+import guestSyncService from "../lib/guestSync.service";
+import authService from "../lib/auth.service";
 import toast from "react-hot-toast";
 
 const HomePage = () => {
   const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(null);
 
   useEffect(() => {
-    // Load notes from localStorage
-    const storedNotes = getNotesFromStorage();
-    setNotes(storedNotes);
-    setLoading(false);
+    const initializePage = async () => {
+      try {
+        // Initialize auth state
+        const isAuthenticated = authService.init();
+        if (isAuthenticated) {
+          setUser(authService.getCurrentUser());
+        }
+
+        // Load notes based on authentication status
+        const notesData = await guestSyncService.getNotes();
+        setNotes(notesData);
+      } catch (error) {
+        console.error('Error loading notes:', error);
+        toast.error('Failed to load notes');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initializePage();
   }, []);
 
-  // Save notes to localStorage whenever notes change
-  useEffect(() => {
-    if (!loading) {
-      saveNotesToStorage(notes);
+  const handleDeleteNote = async (noteId) => {
+    try {
+      await guestSyncService.deleteNote(noteId);
+      setNotes(prevNotes => prevNotes.filter(note => note._id !== noteId && note.id !== noteId));
+      toast.success("Note deleted successfully!");
+    } catch (error) {
+      toast.error(error.message);
     }
-  }, [notes, loading]);
+  };
 
-  const handleDeleteNote = (noteId) => {
-    setNotes(prevNotes => prevNotes.filter(note => note.id !== noteId));
-    toast.success("Note deleted successfully!");
+  const getModeText = () => {
+    if (user) {
+      return `Welcome back, ${user.name}! Your notes are synced to the cloud.`;
+    } else {
+      return "You're in guest mode. Notes are saved locally in your browser.";
+    }
+  };
+
+  const getModeIcon = () => {
+    if (user) {
+      return (
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-current shrink-0 w-6 h-6">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+      );
+    } else {
+      return (
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-current shrink-0 w-6 h-6">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+      );
+    }
   };
 
   return (
@@ -33,12 +73,10 @@ const HomePage = () => {
       <Navbar />
 
       <div className="max-w-7xl mx-auto p-4 mt-6">
-        {/* Guest Mode Notice */}
-        <div className="alert alert-info mb-6">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-current shrink-0 w-6 h-6">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-          </svg>
-          <span>You're in guest mode. Notes are saved locally in your browser.</span>
+        {/* Mode Notice */}
+        <div className={`alert ${user ? 'alert-success' : 'alert-info'} mb-6`}>
+          {getModeIcon()}
+          <span>{getModeText()}</span>
         </div>
 
         {loading && <div className="text-center text-primary py-10">Loading notes...</div>}
@@ -49,7 +87,7 @@ const HomePage = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {notes.map((note) => (
               <NoteCard 
-                key={note.id} 
+                key={note._id || note.id} 
                 note={note} 
                 onDelete={handleDeleteNote}
               />

@@ -2,7 +2,7 @@ import { ArrowLeftIcon } from "lucide-react";
 import { useState } from "react";
 import toast from "react-hot-toast";
 import { Link, useNavigate } from "react-router";
-import { getNotesFromStorage, saveNotesToStorage, generateId } from "../lib/utils";
+import guestSyncService from "../lib/guestSync.service";
 
 const CreatePage = () => {
   const [title, setTitle] = useState("");
@@ -21,27 +21,16 @@ const CreatePage = () => {
 
     setLoading(true);
     try {
-      // Create new note
-      const newNote = {
-        id: generateId(),
+      await guestSyncService.createNote({
         title: title.trim(),
-        content: content.trim(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-
-      // Get existing notes and add new note
-      const existingNotes = getNotesFromStorage();
-      const updatedNotes = [newNote, ...existingNotes];
-      
-      // Save to localStorage
-      saveNotesToStorage(updatedNotes);
+        content: content.trim()
+      });
 
       toast.success("Note created successfully!");
       navigate("/");
     } catch (error) {
       console.log("Error creating note", error);
-      toast.error("Failed to create note");
+      toast.error(error.message);
     } finally {
       setLoading(false);
     }

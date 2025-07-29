@@ -4,6 +4,8 @@ import dotenv from "dotenv";
 import path from "path";
 
 import notesRoutes from "./routes/notesRoutes.js";
+import authRoutes from "./routes/authRoutes.js";
+import pdfRoutes from "./routes/pdfRoutes.js";
 import { connectDB } from "./config/db.js";
 
 dotenv.config();
@@ -28,7 +30,9 @@ app.use(express.json()); // this middleware will parse JSON bodies: req.body
 //   next();
 // });
 
+app.use("/api/auth", authRoutes);
 app.use("/api/notes", notesRoutes);
+app.use("/api/pdf", pdfRoutes);
 
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "../frontend/dist")));
