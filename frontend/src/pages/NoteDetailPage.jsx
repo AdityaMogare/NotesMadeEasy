@@ -2,8 +2,9 @@ import { useEffect } from "react";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import toast from "react-hot-toast";
-import { ArrowLeftIcon, LoaderIcon, Trash2Icon } from "lucide-react";
+import { ArrowLeftIcon, LoaderIcon, Trash2Icon, FileDown } from "lucide-react";
 import guestSyncService from "../lib/guestSync.service";
+import { exportNoteAsMarkdown } from "../lib/exportImport.service";
 
 const NoteDetailPage = () => {
   const [note, setNote] = useState(null);
@@ -47,6 +48,15 @@ const NoteDetailPage = () => {
     } catch (error) {
       console.log("Error deleting the note:", error);
       toast.error(error.message);
+    }
+  };
+
+  const handleExportMarkdown = () => {
+    try {
+      exportNoteAsMarkdown(note);
+      toast.success("Note downloaded as Markdown");
+    } catch (err) {
+      toast.error(err.message || "Export failed");
     }
   };
 
@@ -104,10 +114,21 @@ const NoteDetailPage = () => {
               <ArrowLeftIcon className="h-5 w-5" />
               Back to Notes
             </Link>
-            <button onClick={handleDelete} className="btn btn-error btn-outline">
-              <Trash2Icon className="h-5 w-5" />
-              Delete Note
-            </button>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={handleExportMarkdown}
+                className="btn btn-outline btn-secondary"
+                title="Export as Markdown"
+              >
+                <FileDown className="h-5 w-5" />
+                Export .md
+              </button>
+              <button onClick={handleDelete} className="btn btn-error btn-outline">
+                <Trash2Icon className="h-5 w-5" />
+                Delete Note
+              </button>
+            </div>
           </div>
 
           <div className="card bg-base-100">

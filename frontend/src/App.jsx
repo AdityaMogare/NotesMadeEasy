@@ -7,6 +7,7 @@ import PomodoroPage from "./pages/PomodoroPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import PDFUploadPage from "./pages/PDFUploadPage";
+import SettingsPage from "./pages/SettingsPage";
 
 const App = () => {
   return (
@@ -20,6 +21,7 @@ const App = () => {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/pdf-upload" element={<PDFUploadPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
       </Routes>
     </div>
   );

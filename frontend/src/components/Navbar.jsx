@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router";
-import { PlusIcon, Timer, User, LogOut, LogIn, UserPlus, FileText } from "lucide-react";
+import { PlusIcon, Timer, User, LogOut, LogIn, UserPlus, FileText, Settings } from "lucide-react";
 import authService from "../lib/auth.service";
 import guestSyncService from "../lib/guestSync.service";
 import toast from "react-hot-toast";
@@ -51,6 +51,11 @@ const Navbar = () => {
             <Link to={"/pdf-upload"} className="btn btn-outline">
               <FileText className="size-5" />
               <span>PDF Upload</span>
+            </Link>
+
+            <Link to={"/settings"} className="btn btn-ghost" title="Settings">
+              <Settings className="size-5" />
+              <span className="hidden sm:inline">Settings</span>
             </Link>
             
             <Link to={"/create"} className="btn btn-primary">
