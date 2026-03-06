@@ -2,8 +2,9 @@ import { useEffect } from "react";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import toast from "react-hot-toast";
-import { ArrowLeftIcon, LoaderIcon, Trash2Icon } from "lucide-react";
-import { getNotesFromStorage, saveNotesToStorage } from "../lib/utils";
+import { ArrowLeftIcon, LoaderIcon, Trash2Icon, FileDown } from "lucide-react";
+import guestSyncService from "../lib/guestSync.service";
+import { exportNoteAsMarkdown } from "../lib/exportImport.service";
 
 const NoteDetailPage = () => {
   const [note, setNote] = useState(null);
@@ -14,10 +15,10 @@ const NoteDetailPage = () => {
   const { id } = useParams();
 
   useEffect(() => {
-    const fetchNote = () => {
+    const fetchNote = async () => {
       try {
-        const notes = getNotesFromStorage();
-        const foundNote = notes.find(n => n.id === id);
+        const notes = await guestSyncService.getNotes();
+        const foundNote = notes.find(n => (n._id === id) || (n.id === id));
         
         if (!foundNote) {
           toast.error("Note not found");
@@ -37,23 +38,29 @@ const NoteDetailPage = () => {
     fetchNote();
   }, [id, navigate]);
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!window.confirm("Are you sure you want to delete this note?")) return;
 
     try {
-      const notes = getNotesFromStorage();
-      const updatedNotes = notes.filter(n => n.id !== id);
-      saveNotesToStorage(updatedNotes);
-      
+      await guestSyncService.deleteNote(id);
       toast.success("Note deleted");
       navigate("/");
     } catch (error) {
       console.log("Error deleting the note:", error);
-      toast.error("Failed to delete note");
+      toast.error(error.message);
     }
   };
 
-  const handleSave = () => {
+  const handleExportMarkdown = () => {
+    try {
+      exportNoteAsMarkdown(note);
+      toast.success("Note downloaded as Markdown");
+    } catch (err) {
+      toast.error(err.message || "Export failed");
+    }
+  };
+
+  const handleSave = async () => {
     if (!note.title.trim() || !note.content.trim()) {
       toast.error("Please add a title or content");
       return;
@@ -62,19 +69,16 @@ const NoteDetailPage = () => {
     setSaving(true);
 
     try {
-      const notes = getNotesFromStorage();
-      const updatedNotes = notes.map(n => 
-        n.id === id 
-          ? { ...note, updatedAt: new Date().toISOString() }
-          : n
-      );
+      await guestSyncService.updateNote(id, {
+        title: note.title.trim(),
+        content: note.content.trim()
+      });
       
-      saveNotesToStorage(updatedNotes);
       toast.success("Note updated successfully");
       navigate("/");
     } catch (error) {
       console.log("Error saving the note:", error);
-      toast.error("Failed to update note");
+      toast.error(error.message);
     } finally {
       setSaving(false);
     }
@@ -110,10 +114,21 @@ const NoteDetailPage = () => {
               <ArrowLeftIcon className="h-5 w-5" />
               Back to Notes
             </Link>
-            <button onClick={handleDelete} className="btn btn-error btn-outline">
-              <Trash2Icon className="h-5 w-5" />
-              Delete Note
-            </button>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={handleExportMarkdown}
+                className="btn btn-outline btn-secondary"
+                title="Export as Markdown"
+              >
+                <FileDown className="h-5 w-5" />
+                Export .md
+              </button>
+              <button onClick={handleDelete} className="btn btn-error btn-outline">
+                <Trash2Icon className="h-5 w-5" />
+                Delete Note
+              </button>
+            </div>
           </div>
 
           <div className="card bg-base-100">
