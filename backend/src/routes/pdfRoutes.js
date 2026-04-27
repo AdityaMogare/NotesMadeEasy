@@ -1,6 +1,7 @@
 import express from 'express';
 import multer from 'multer';
 import { optionalAuthMiddleware } from '../middleware/auth.js';
+import pdfParser from '../services/pdfParser.js';
 
 const router = express.Router();
 
@@ -20,39 +21,75 @@ const upload = multer({
   }
 });
 
-// Upload PDF (placeholder for now)
 router.post('/upload', optionalAuthMiddleware, upload.single('pdf'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ message: 'No PDF file uploaded' });
     }
 
-    // For now, just return a success message
-    // PDF parsing will be implemented later
-    res.json({
-      message: 'PDF uploaded successfully (parsing coming soon)',
-      filename: req.file.originalname,
-      size: req.file.size,
-      notes: [
+    if (!pdfParser.isSupportedFile(req.file.originalname)) {
+      return res.status(400).json({ message: 'Only PDF files are supported' });
+    }
+
+    if (!pdfParser.isFileSizeValid(req.file.size)) {
+      return res.status(400).json({ message: 'File exceeds maximum size of 10MB' });
+    }
+
+    const parsed = await pdfParser.extractStructuredNotes(req.file.buffer);
+    const baseTitle =
+      parsed.title && parsed.title !== 'PDF Document'
+        ? parsed.title
+        : req.file.originalname.replace(/\.pdf$/i, '') || 'PDF';
+
+    let notes;
+    if (parsed.sections.length === 0) {
+      notes = [
         {
-          title: 'PDF Document - ' + req.file.originalname,
-          content: 'PDF parsing functionality will be available soon. Your file has been uploaded successfully.',
+          title: `${baseTitle} (no text)`,
+          content:
+            'No extractable text was found in this PDF. It may be image-only (scanned), protected, or empty. Try a text-based PDF or use OCR first.',
           source: 'PDF Upload',
           metadata: {
             originalFilename: req.file.originalname,
             size: req.file.size,
-            uploadDate: new Date().toISOString()
+            uploadDate: new Date().toISOString(),
+            pages: parsed.pages,
+            section: 1,
+            totalSections: 1
           }
         }
-      ],
+      ];
+    } else {
+      notes = parsed.sections.map((content, index) => ({
+        title:
+          parsed.sections.length === 1
+            ? baseTitle
+            : `${baseTitle} — Part ${index + 1}`,
+        content: content.trim(),
+        source: 'PDF Upload',
+        metadata: {
+          originalFilename: req.file.originalname,
+          size: req.file.size,
+          uploadDate: new Date().toISOString(),
+          pages: parsed.pages,
+          section: index + 1,
+          totalSections: parsed.sections.length
+        }
+      }));
+    }
+
+    res.json({
+      message: 'PDF processed successfully',
+      filename: req.file.originalname,
+      size: req.file.size,
+      notes,
       summary: {
         title: req.file.originalname,
-        pages: 'Unknown',
-        sections: 1,
-        totalNotes: 1
+        pages: parsed.pages,
+        sections: parsed.sections.length,
+        totalNotes: notes.length
       }
     });
-
   } catch (error) {
     console.error('PDF upload error:', error);
     res.status(500).json({ 

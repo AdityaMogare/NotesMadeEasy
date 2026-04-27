@@ -11,7 +11,9 @@ class PDFParserService {
   async getPDFParser() {
     if (!this.pdfParser) {
       try {
-        const pdfParse = await import('pdf-parse');
+        // Import implementation directly: the package `index.js` runs a debug
+        // block when `module.parent` is unset (typical under ESM), which throws.
+        const pdfParse = await import('pdf-parse/lib/pdf-parse.js');
         this.pdfParser = pdfParse.default;
       } catch (error) {
         console.error('Failed to load pdf-parse:', error);
@@ -82,8 +84,11 @@ class PDFParserService {
 
   // Split text into sections (for better note organization)
   splitTextIntoSections(text, maxSectionLength = 1000) {
-    if (!text || text.length <= maxSectionLength) {
-      return [text];
+    if (!text || !text.trim()) {
+      return [];
+    }
+    if (text.length <= maxSectionLength) {
+      return [text.trim()];
     }
 
     const sections = [];
@@ -138,7 +143,9 @@ class PDFParserService {
     try {
       const extraction = await this.extractTextFromBuffer(buffer);
       const cleanedText = this.cleanText(extraction.text);
-      const sections = this.splitTextIntoSections(cleanedText);
+      const sections = this.splitTextIntoSections(cleanedText).filter(
+        (s) => s && s.trim().length > 0
+      );
       const title = this.generateNoteTitle(extraction.info, cleanedText);
 
       return {
