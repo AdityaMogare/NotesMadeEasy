@@ -5,6 +5,7 @@ import toast from "react-hot-toast";
 import { ArrowLeftIcon, LoaderIcon, Trash2Icon, FileDown } from "lucide-react";
 import guestSyncService from "../lib/guestSync.service";
 import { exportNoteAsMarkdown } from "../lib/exportImport.service";
+import ShareNotePanel from "../components/ShareNotePanel";
 
 const NoteDetailPage = () => {
   const [note, setNote] = useState(null);
@@ -17,15 +18,14 @@ const NoteDetailPage = () => {
   useEffect(() => {
     const fetchNote = async () => {
       try {
-        const notes = await guestSyncService.getNotes();
-        const foundNote = notes.find(n => (n._id === id) || (n.id === id));
-        
+        const foundNote = await guestSyncService.getNoteById(id);
+
         if (!foundNote) {
           toast.error("Note not found");
           navigate("/");
           return;
         }
-        
+
         setNote(foundNote);
       } catch (error) {
         console.log("Error in fetching note", error);
@@ -38,7 +38,17 @@ const NoteDetailPage = () => {
     fetchNote();
   }, [id, navigate]);
 
+  const isOwner = Boolean(note && (!note.access || note.access === "owner"));
+  const canEdit = Boolean(
+    note &&
+      (isOwner || (note.access === "shared" && note.sharePermission === "edit"))
+  );
+  const isSharedReadOnly = Boolean(
+    note?.access === "shared" && note.sharePermission === "read"
+  );
+
   const handleDelete = async () => {
+    if (!isOwner) return;
     if (!window.confirm("Are you sure you want to delete this note?")) return;
 
     try {
@@ -61,6 +71,10 @@ const NoteDetailPage = () => {
   };
 
   const handleSave = async () => {
+    if (!canEdit) {
+      toast.error("You do not have permission to edit this note");
+      return;
+    }
     if (!note.title.trim() || !note.content.trim()) {
       toast.error("Please add a title or content");
       return;
@@ -124,12 +138,26 @@ const NoteDetailPage = () => {
                 <FileDown className="h-5 w-5" />
                 Export .md
               </button>
-              <button onClick={handleDelete} className="btn btn-error btn-outline">
-                <Trash2Icon className="h-5 w-5" />
-                Delete Note
-              </button>
+              {isOwner && (
+                <button onClick={handleDelete} className="btn btn-error btn-outline">
+                  <Trash2Icon className="h-5 w-5" />
+                  Delete Note
+                </button>
+              )}
             </div>
           </div>
+
+          {note.access === "shared" && (
+            <div className="alert alert-info mb-4">
+              <span>
+                Shared with you by <strong>{note.sharedByName || "another user"}</strong>
+                {note.sharedByEmail ? ` (${note.sharedByEmail})` : ""}.{" "}
+                {isSharedReadOnly
+                  ? "You can view this note but not edit it."
+                  : "You can edit this note."}
+              </span>
+            </div>
+          )}
 
           <div className="card bg-base-100">
             <div className="card-body">
@@ -142,6 +170,7 @@ const NoteDetailPage = () => {
                   placeholder="Note title"
                   className="input input-bordered"
                   value={note.title}
+                  readOnly={!canEdit}
                   onChange={(e) => setNote({ ...note, title: e.target.value })}
                 />
               </div>
@@ -154,17 +183,24 @@ const NoteDetailPage = () => {
                   placeholder="Write your note here..."
                   className="textarea textarea-bordered h-32"
                   value={note.content}
+                  readOnly={!canEdit}
                   onChange={(e) => setNote({ ...note, content: e.target.value })}
                 />
               </div>
 
               <div className="card-actions justify-end">
-                <button className="btn btn-primary" disabled={saving} onClick={handleSave}>
-                  {saving ? "Saving..." : "Save Changes"}
-                </button>
+                {canEdit && (
+                  <button className="btn btn-primary" disabled={saving} onClick={handleSave}>
+                    {saving ? "Saving..." : "Save Changes"}
+                  </button>
+                )}
               </div>
             </div>
           </div>
+
+          {isOwner && guestSyncService.isAuthenticated() && (
+            <ShareNotePanel noteId={note._id || id} />
+          )}
         </div>
       </div>
     </div>

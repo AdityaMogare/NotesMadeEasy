@@ -96,6 +96,42 @@ class GuestSyncService {
     return !!sessionId;
   }
 
+  async getNoteById(noteId) {
+    try {
+      if (this.isAuthenticated()) {
+        const response = await api.get(`/notes/${noteId}`);
+        return response.data;
+      }
+      const notes = await this.getNotes();
+      return (
+        notes.find(
+          (n) => String(n._id) === String(noteId) || n.id === noteId
+        ) ?? null
+      );
+    } catch (error) {
+      console.error("Error getting note by id:", error);
+      throw new Error(error.response?.data?.message || "Failed to load note");
+    }
+  }
+
+  async shareNote(noteId, { email, permission }) {
+    const response = await api.post(`/notes/${noteId}/share`, {
+      email,
+      permission,
+    });
+    return response.data;
+  }
+
+  async getNoteShares(noteId) {
+    const response = await api.get(`/notes/${noteId}/shares`);
+    return response.data;
+  }
+
+  async revokeNoteShare(noteId, userId) {
+    const response = await api.delete(`/notes/${noteId}/share/${userId}`);
+    return response.data;
+  }
+
   // Get notes (works for both guest and authenticated users)
   async getNotes() {
     try {
