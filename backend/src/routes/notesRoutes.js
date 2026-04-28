@@ -6,7 +6,10 @@ import {
   getNoteById,
   updateNote,
   syncGuestNotes,
-  getGuestNotes
+  getGuestNotes,
+  shareNote,
+  listNoteShares,
+  revokeNoteShare,
 } from "../controllers/notesController.js";
 import { authMiddleware, optionalAuthMiddleware } from "../middleware/auth.js";
 
@@ -17,12 +20,18 @@ router.get("/", optionalAuthMiddleware, getAllNotes);
 router.get("/guest/:guestId", getGuestNotes);
 
 // Routes that require authentication
-router.get("/:id", authMiddleware, getNoteById);
 router.post("/", optionalAuthMiddleware, createNote);
 router.put("/:id", authMiddleware, updateNote);
 router.delete("/:id", authMiddleware, deleteNote);
 
 // Special route for syncing guest notes to user account
 router.post("/sync-guest-notes", authMiddleware, syncGuestNotes);
+
+// Sharing (must be registered before GET /:id)
+router.post("/:id/share", authMiddleware, shareNote);
+router.get("/:id/shares", authMiddleware, listNoteShares);
+router.delete("/:id/share/:userId", authMiddleware, revokeNoteShare);
+
+router.get("/:id", authMiddleware, getNoteById);
 
 export default router;
